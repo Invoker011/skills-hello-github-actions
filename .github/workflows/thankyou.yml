@@ -29,6 +29,7 @@ jobs:
             }
             return email;
       - name: Send email
+        if: ${{ steps.get_email.outputs.result != '' }}
         uses: dawidd6/action-send-mail@v3
         with:
           server_address: ${{ secrets.SMTP_SERVER }}
@@ -36,6 +37,24 @@ jobs:
           username: ${{ secrets.SMTP_USERNAME }}
           password: ${{ secrets.SMTP_PASSWORD }}
           subject: "Thank you for your contribution"
-          body: "Thankyou for your contribution. PR has been successfully merged into Main Branch"
+          body: "Thank you for your contribution. The pull request was merged into the main branch."
           to: ${{ steps.get_email.outputs.result }}
-          from: "Atharva Borkar <${{ secrets.SMTP_USERNAME }}>"
+          from: "Atharva Borkar <${{ secrets.SMTP_USERNAME }}>" 
+      - name: Post thank-you comment
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const pr = context.payload.pull_request;
+            const email = '${{ steps.get_email.outputs.result }}';
+            let body = '';
+            if (email && email !== '') {
+              body = `Thank you for your contribution — this pull request was merged into the main branch. A confirmation email has been sent to ${email}. We appreciate your help!`;
+            } else {
+              body = `Thank you for your contribution — this pull request was merged into the main branch. We couldn't determine a contributor email, so we couldn't send an email. Thank you for your contribution!`;
+            }
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: pr.number,
+              body
+            });
